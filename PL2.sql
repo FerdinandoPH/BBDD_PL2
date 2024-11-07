@@ -159,27 +159,27 @@ CREATE TABLE IF NOT EXISTS tienda.Canciones(
 );
 
 CREATE TABLE IF NOT EXISTS tienda.UDeseaD(
-    usuario_nombre TEXT,
+    usuario_nombre_usuario TEXT,
     disco_titulo TEXT,
     disco_anno_publicacion INTEGER,
-    PRIMARY KEY (usuario_nombre, disco_titulo, disco_anno_publicacion),
-    FOREIGN KEY (usuario_nombre) REFERENCES tienda.Usuarios(nombre_usuario),
+    PRIMARY KEY (usuario_nombre_usuario, disco_titulo, disco_anno_publicacion),
+    FOREIGN KEY (usuario_nombre_usuario) REFERENCES tienda.Usuarios(nombre_usuario),
     FOREIGN KEY (disco_titulo, disco_anno_publicacion) REFERENCES tienda.Discos(titulo, anno_publicacion)
 );
 CREATE TYPE estado_enum AS ENUM ('M', 'NM', 'EX', 'VG+', 'VG', 'G', 'F');
 CREATE TABLE IF NOT EXISTS tienda.UTieneE(
-    usuario_nombre TEXT,
+    usuario_nombre_usuario TEXT,
     disco_titulo TEXT,
     disco_anno_publicacion INTEGER,
     edicion_pais TEXT,
-    edicion_anno INTEGER,
+    edicion_anno_edicion INTEGER,
     edicion_formato formato_enum,
     estado estado_enum NOT NULL,
     id INTEGER CHECK(id > 0) NOT NULL,
-    PRIMARY KEY (usuario_nombre, disco_titulo, disco_anno_publicacion, edicion_pais, edicion_anno, edicion_formato,id),
-    FOREIGN KEY (usuario_nombre) REFERENCES tienda.Usuarios(nombre_usuario),
+    PRIMARY KEY (usuario_nombre_usuario, disco_titulo, disco_anno_publicacion, edicion_pais, edicion_anno_edicion, edicion_formato,id),
+    FOREIGN KEY (usuario_nombre_usuario) REFERENCES tienda.Usuarios(nombre_usuario),
     FOREIGN KEY (disco_titulo, disco_anno_publicacion) REFERENCES tienda.Discos(titulo, anno_publicacion),
-    FOREIGN KEY (edicion_pais, edicion_anno, edicion_formato, disco_titulo, disco_anno_publicacion) REFERENCES tienda.Ediciones(pais, anno_edicion, formato, disco_titulo, disco_anno_publicacion)
+    FOREIGN KEY (edicion_pais, edicion_anno_edicion, edicion_formato, disco_titulo, disco_anno_publicacion) REFERENCES tienda.Ediciones(pais, anno_edicion, formato, disco_titulo, disco_anno_publicacion)
 );
 \echo 'Commenzation de la transformation'
 INSERT INTO tienda.Usuarios
@@ -219,35 +219,89 @@ SELECT DISTINCT c.titulo, (CAST(split_part(c.duracion, ':', 1) AS INTEGER) * 60)
 FROM tienda_temporal.Canciones c
 JOIN tienda_temporal.Discos d ON c.disco_id = d.id;
 
-SELECT * FROM tienda.Discos WHERE titulo = 'Waves';
-
 
 INSERT INTO tienda.GenerosDisco
 SELECT DISTINCT titulo, anno_publicacion::INTEGER, trim(both ' ' from replace(trim(both '[]' from unnest(string_to_array(replace(trim(both '[]' from generos), ' & ', ''), ','))), '''', ''))
 FROM tienda_temporal.Discos;
 
 --Borrar los UDeseaD con un nombre de usuario que no exista en la tabla de usuarios
-DELETE FROM tienda_temporal.UDeseaD
-WHERE usuario_nombre_usuario NOT IN (SELECT nombre_usuario FROM tienda.Usuarios);
+-- DELETE FROM tienda_temporal.UDeseaD
+-- WHERE usuario_nombre_usuario NOT IN (SELECT nombre_usuario FROM tienda.Usuarios);
 
 INSERT INTO tienda.UDeseaD
 SELECT usuario_nombre_usuario, disco_titulo, disco_anno_publicacion::INTEGER
-FROM tienda_temporal.UDeseaD;
+FROM tienda_temporal.UDeseaD
+WHERE usuario_nombre_usuario IN (SELECT nombre_usuario FROM tienda.Usuarios);
 
-DELETE FROM tienda_temporal.UTieneE
-WHERE usuario_nombre_usuario NOT IN (SELECT nombre_usuario FROM tienda.Usuarios);
 
 CREATE SEQUENCE tienda.UTieneE_id_seq;
 
 INSERT INTO tienda.UTieneE
 SELECT usuario_nombre_usuario, disco_titulo, disco_anno_publicacion::INTEGER, edicion_pais, edicion_anno_edicion::INTEGER, edicion_formato::formato_enum, estado::estado_enum, nextval('tienda.UTieneE_id_seq')
-FROM tienda_temporal.UTieneE;
+FROM tienda_temporal.UTieneE
+WHERE usuario_nombre_usuario IN (SELECT nombre_usuario FROM tienda.Usuarios);
 
 SET search_path= tienda;
-\quit
 
+\echo 'Fin de la transformación'
 
-\echo Consulta n:
+-- \echo 'Consulta 1: '
+-- SELECT d.titulo, COUNT(*) AS num_canciones
+-- FROM Discos d JOIN Canciones c ON d.titulo = c.disco_titulo AND d.anno_publicacion = c.disco_anno_publicacion
+-- GROUP BY d.titulo
+-- HAVING COUNT(*) > 5
+-- ORDER BY num_canciones;
 
+-- \echo 'Consulta 2: '
+-- SELECT u.nombre_usuario, u.nombre, e.disco_titulo, e.disco_anno_publicacion, e.edicion_pais, e.edicion_anno_edicion, e.edicion_formato, e.estado
+-- FROM UTieneE e
+-- JOIN Usuarios u ON e.usuario_nombre_usuario = u.nombre_usuario
+-- WHERE u.nombre LIKE 'Juan García Gómez' AND e.edicion_formato = 'Vinyl';
 
+-- \echo 'Consulta 3: '
+-- SELECT d.titulo, d.anno_publicacion, SUM(c.duracion) AS duracion_total
+-- FROM Discos d JOIN Canciones c ON d.titulo = c.disco_titulo AND d.anno_publicacion = c.disco_anno_publicacion
+-- GROUP BY d.titulo, d.anno_publicacion
+-- HAVING SUM(c.duracion) IS NOT NULL
+-- ORDER BY duracion_total DESC
+-- LIMIT 1;
+
+-- \echo 'Consulta 4: '
+-- SELECT u.nombre_usuario, u.nombre, udd.disco_titulo, udd.disco_anno_publicacion, d.grupo_nombre
+-- FROM usuarios u JOIN udesead udd ON u.nombre_usuario = udd.usuario_nombre
+-- JOIN discos d ON udd.disco_titulo = d.titulo AND udd.disco_anno_publicacion = d.anno_publicacion
+-- WHERE u.nombre LIKE 'Juan García Gómez';
+
+-- \echo 'Consulta 5: '
+-- SELECT disco_titulo, disco_anno_publicacion, anno_edicion, pais, formato
+-- FROM Ediciones
+-- WHERE disco_anno_publicacion BETWEEN 1970 AND 1972
+-- ORDER BY disco_anno_publicacion, disco_titulo;
+
+-- \echo 'Consulta 6: '
+-- SELECT DISTINCT g.nombre
+-- FROM Grupos g JOIN discos d ON g.nombre = d.grupo_nombre JOIN generosdisco gd ON d.titulo = gd.disco_titulo AND d.anno_publicacion = gd.disco_anno_publicacion
+-- WHERE gd.genero = 'Electronic';
+
+--\echo 'Consulta 7: '
+-- SELECT DISTINCT d.titulo, d.anno_publicacion, SUM(c.duracion) AS duracion_total
+-- FROM Discos d
+-- JOIN Canciones c ON d.titulo = c.disco_titulo AND d.anno_publicacion = c.disco_anno_publicacion
+-- JOIN Ediciones e ON d.titulo = e.disco_titulo AND d.anno_publicacion = e.disco_anno_publicacion
+-- WHERE e.anno_edicion < 2000
+-- GROUP BY d.titulo, d.anno_publicacion;
+
+-- \echo 'Consulta 8: '
+-- SELECT ut.nombre AS lo_tiene, ud.nombre AS lo_desea, ute.disco_titulo, ute.disco_anno_publicacion, ute.edicion_pais, ute.edicion_anno_edicion, ute.edicion_formato, ute.estado
+-- FROM UTieneE ute JOIN UDeseaD udd ON ute.disco_titulo = udd.disco_titulo AND ute.disco_anno_publicacion = udd.disco_anno_publicacion JOIN usuarios ud ON udd.usuario_nombre_usuario = ud.nombre_usuario JOIN usuarios ut ON ute.usuario_nombre_usuario = ut.nombre_usuario
+-- WHERE ut.nombre LIKE 'Juan García Gómez' AND ud.nombre LIKE 'Lorena Sáez Pérez';
+
+-- \echo 'Consulta 9: '
+-- SELECT u.nombre AS nombre_del_usuario, ute.disco_titulo, ute.disco_anno_publicacion, ute.edicion_pais, ute.edicion_anno_edicion, ute.edicion_formato, ute.estado
+-- FROM UTieneE ute JOIN Usuarios u ON ute.usuario_nombre_usuario = u.nombre_usuario
+-- WHERE u.nombre LIKE '%Gómez García%' AND (ute.estado = 'NM' OR ute.estado = 'M');
+
+\echo 'Consulta 10: '
+
+\q
 ROLLBACK;                       -- importante! permite correr el script multiples veces...p
