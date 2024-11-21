@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS tienda_temporal.Canciones(
 
 SET search_path= tienda_temporal;
 \echo 'Cargando datos'
--- Crear tablas temporales
+-- Crear tablas temporales para las tablas temporales
 CREATE TEMP TABLE temp_usuarios AS TABLE tienda_temporal.Usuarios WITH NO DATA;
 CREATE TEMP TABLE temp_discos AS TABLE tienda_temporal.Discos WITH NO DATA;
 CREATE TEMP TABLE temp_ediciones AS TABLE tienda_temporal.Ediciones WITH NO DATA;
@@ -78,7 +78,7 @@ CREATE TEMP TABLE temp_canciones AS TABLE tienda_temporal.Canciones WITH NO DATA
 \COPY temp_utienee FROM 'usuario_tiene_edicion.csv' DELIMITER ';' CSV HEADER NULL 'NULL';
 \COPY temp_canciones FROM 'canciones.csv' DELIMITER ';' CSV HEADER NULL 'NULL';
 
--- Insertar datos distintos en las tablas de destino
+-- Evitar duplicados
 INSERT INTO tienda_temporal.Usuarios
 SELECT DISTINCT * FROM temp_usuarios;
 
@@ -138,6 +138,7 @@ CREATE TABLE IF NOT EXISTS tienda.GenerosDisco(
     PRIMARY KEY (disco_titulo, disco_anno_publicacion, genero),
     FOREIGN KEY (disco_titulo, disco_anno_publicacion) REFERENCES tienda.Discos(titulo, anno_publicacion)
 );
+
 CREATE TYPE formato_enum AS ENUM ('CD', 'Vinyl', 'Cassette', 'Flexi-disc', 'CDr', 'Box Set', 'File', 'All Media', 'Lathe Cut', 'DVD', 'VHS', 'Reel-To-Reel', 'Shellac', 'Blu-ray', 'SACD', '8-Track Cartridge', 'Floppy Disk');
 CREATE TABLE IF NOT EXISTS tienda.Ediciones(
     pais TEXT,
@@ -181,7 +182,9 @@ CREATE TABLE IF NOT EXISTS tienda.UTieneE(
     FOREIGN KEY (disco_titulo, disco_anno_publicacion) REFERENCES tienda.Discos(titulo, anno_publicacion),
     FOREIGN KEY (edicion_pais, edicion_anno_edicion, edicion_formato, disco_titulo, disco_anno_publicacion) REFERENCES tienda.Ediciones(pais, anno_edicion, formato, disco_titulo, disco_anno_publicacion)
 );
+
 \echo 'Commenzation de la transformation'
+
 INSERT INTO tienda.Usuarios
 SELECT nombre_usuario, email, nombre, contrasena
 FROM tienda_temporal.Usuarios;
@@ -224,9 +227,6 @@ INSERT INTO tienda.GenerosDisco
 SELECT DISTINCT titulo, anno_publicacion::INTEGER, trim(both ' ' from replace(trim(both '[]' from unnest(string_to_array(replace(trim(both '[]' from generos), ' & ', ''), ','))), '''', ''))
 FROM tienda_temporal.Discos;
 
---Borrar los UDeseaD con un nombre de usuario que no exista en la tabla de usuarios
--- DELETE FROM tienda_temporal.UDeseaD
--- WHERE usuario_nombre_usuario NOT IN (SELECT nombre_usuario FROM tienda.Usuarios);
 
 INSERT INTO tienda.UDeseaD
 SELECT usuario_nombre_usuario, disco_titulo, disco_anno_publicacion::INTEGER
@@ -252,80 +252,80 @@ GROUP BY d.titulo, d.anno_publicacion
 HAVING COUNT(*) > 5
 ORDER BY num_canciones;
 
--- \echo 'Consulta 2: '
--- SELECT u.nombre_usuario, u.nombre, e.disco_titulo, e.disco_anno_publicacion, e.edicion_pais, e.edicion_anno_edicion, e.edicion_formato, e.estado
--- FROM UTieneE e
--- JOIN Usuarios u ON e.usuario_nombre_usuario = u.nombre_usuario
--- WHERE u.nombre LIKE 'Juan García Gómez' AND e.edicion_formato = 'Vinyl';
+\echo 'Consulta 2: '
+SELECT u.nombre_usuario, u.nombre, e.disco_titulo, e.disco_anno_publicacion, e.edicion_pais, e.edicion_anno_edicion, e.edicion_formato, e.estado
+FROM UTieneE e
+JOIN Usuarios u ON e.usuario_nombre_usuario = u.nombre_usuario
+WHERE u.nombre LIKE 'Juan García Gómez' AND e.edicion_formato = 'Vinyl';
 
--- \echo 'Consulta 3: '
--- WITH DuracionesDisco as (
---     SELECT d.titulo, d.anno_publicacion, SUM(c.duracion) AS duracion_total
---     FROM Discos d JOIN Canciones c ON d.titulo = c.disco_titulo AND d.anno_publicacion = c.disco_anno_publicacion
---     GROUP BY d.titulo, d.anno_publicacion
---     HAVING SUM(c.duracion) IS NOT NULL
--- )
--- SELECT d.titulo, d.anno_publicacion, SUM(c.duracion) AS duracion_total
--- FROM Discos d JOIN Canciones c ON d.titulo = c.disco_titulo AND d.anno_publicacion = c.disco_anno_publicacion
--- GROUP BY d.titulo, d.anno_publicacion
--- HAVING SUM(c.duracion) >= ALL(SELECT duracion_total FROM DuracionesDisco);
+\echo 'Consulta 3: '
+WITH DuracionesDisco AS (
+    SELECT d.titulo, d.anno_publicacion, SUM(c.duracion) AS duracion_total
+    FROM Discos d JOIN Canciones c ON d.titulo = c.disco_titulo AND d.anno_publicacion = c.disco_anno_publicacion
+    GROUP BY d.titulo, d.anno_publicacion
+    HAVING SUM(c.duracion) IS NOT NULL
+)
+SELECT d.titulo, d.anno_publicacion, SUM(c.duracion) AS duracion_total
+FROM Discos d JOIN Canciones c ON d.titulo = c.disco_titulo AND d.anno_publicacion = c.disco_anno_publicacion
+GROUP BY d.titulo, d.anno_publicacion
+HAVING SUM(c.duracion) >= ALL(SELECT duracion_total FROM DuracionesDisco);
 
--- \echo 'Consulta 4: '
--- SELECT u.nombre_usuario, u.nombre, udd.disco_titulo, udd.disco_anno_publicacion, d.grupo_nombre
--- FROM usuarios u JOIN udesead udd ON u.nombre_usuario = udd.usuario_nombre_usuario
--- JOIN discos d ON udd.disco_titulo = d.titulo AND udd.disco_anno_publicacion = d.anno_publicacion
--- WHERE u.nombre LIKE 'Juan García Gómez';
+\echo 'Consulta 4: '
+SELECT u.nombre_usuario, u.nombre, udd.disco_titulo, udd.disco_anno_publicacion, d.grupo_nombre
+FROM usuarios u JOIN udesead udd ON u.nombre_usuario = udd.usuario_nombre_usuario
+JOIN discos d ON udd.disco_titulo = d.titulo AND udd.disco_anno_publicacion = d.anno_publicacion
+WHERE u.nombre LIKE 'Juan García Gómez';
 
--- \echo 'Consulta 5: '
--- SELECT disco_titulo, disco_anno_publicacion, anno_edicion, pais, formato
--- FROM Ediciones
--- WHERE disco_anno_publicacion BETWEEN 1970 AND 1972
--- ORDER BY disco_anno_publicacion, disco_titulo;
+\echo 'Consulta 5: '
+SELECT disco_titulo, disco_anno_publicacion, anno_edicion, pais, formato
+FROM Ediciones
+WHERE disco_anno_publicacion BETWEEN 1970 AND 1972
+ORDER BY disco_anno_publicacion, disco_titulo;
 
--- \echo 'Consulta 6: '
--- SELECT DISTINCT g.nombre
--- FROM Grupos g JOIN discos d ON g.nombre = d.grupo_nombre JOIN generosdisco gd ON d.titulo = gd.disco_titulo AND d.anno_publicacion = gd.disco_anno_publicacion
--- WHERE gd.genero = 'Electronic';
+\echo 'Consulta 6: '
+SELECT DISTINCT g.nombre
+FROM Grupos g JOIN discos d ON g.nombre = d.grupo_nombre JOIN generosdisco gd ON d.titulo = gd.disco_titulo AND d.anno_publicacion = gd.disco_anno_publicacion
+WHERE gd.genero = 'Electronic';
 
--- \echo 'Consulta 7: '
--- SELECT DISTINCT d.titulo, d.anno_publicacion, SUM(c.duracion) AS duracion_total
--- FROM Discos d
--- JOIN Canciones c ON d.titulo = c.disco_titulo AND d.anno_publicacion = c.disco_anno_publicacion
--- JOIN Ediciones e ON d.titulo = e.disco_titulo AND d.anno_publicacion = e.disco_anno_publicacion
--- WHERE e.anno_edicion < 2000
--- GROUP BY d.titulo, d.anno_publicacion;
+\echo 'Consulta 7: '
+SELECT DISTINCT d.titulo, d.anno_publicacion, SUM(c.duracion) AS duracion_total
+FROM Discos d
+JOIN Canciones c ON d.titulo = c.disco_titulo AND d.anno_publicacion = c.disco_anno_publicacion
+JOIN Ediciones e ON d.titulo = e.disco_titulo AND d.anno_publicacion = e.disco_anno_publicacion
+WHERE e.anno_edicion < 2000
+GROUP BY d.titulo, d.anno_publicacion;
 
--- \echo 'Consulta 8: '
--- SELECT ut.nombre AS lo_tiene, ud.nombre AS lo_desea, ute.disco_titulo, ute.disco_anno_publicacion, ute.edicion_pais, ute.edicion_anno_edicion, ute.edicion_formato, ute.estado
--- FROM UTieneE ute JOIN UDeseaD udd ON ute.disco_titulo = udd.disco_titulo AND ute.disco_anno_publicacion = udd.disco_anno_publicacion JOIN usuarios ud ON udd.usuario_nombre_usuario = ud.nombre_usuario JOIN usuarios ut ON ute.usuario_nombre_usuario = ut.nombre_usuario
--- WHERE ut.nombre LIKE 'Juan García Gómez' AND ud.nombre LIKE 'Lorena Sáez Pérez';
+\echo 'Consulta 8: '
+SELECT ut.nombre AS lo_tiene, ud.nombre AS lo_desea, ute.disco_titulo, ute.disco_anno_publicacion, ute.edicion_pais, ute.edicion_anno_edicion, ute.edicion_formato, ute.estado
+FROM UTieneE ute JOIN UDeseaD udd ON ute.disco_titulo = udd.disco_titulo AND ute.disco_anno_publicacion = udd.disco_anno_publicacion JOIN usuarios ud ON udd.usuario_nombre_usuario = ud.nombre_usuario JOIN usuarios ut ON ute.usuario_nombre_usuario = ut.nombre_usuario
+WHERE ut.nombre LIKE 'Juan García Gómez' AND ud.nombre LIKE 'Lorena Sáez Pérez';
 
--- \echo 'Consulta 9: '
--- SELECT u.nombre AS nombre_del_usuario, ute.disco_titulo, ute.disco_anno_publicacion, ute.edicion_pais, ute.edicion_anno_edicion, ute.edicion_formato, ute.estado
--- FROM UTieneE ute JOIN Usuarios u ON ute.usuario_nombre_usuario = u.nombre_usuario
--- WHERE u.nombre LIKE '%Gómez García%' AND (ute.estado = 'NM' OR ute.estado = 'M');
+\echo 'Consulta 9: '
+SELECT u.nombre AS nombre_del_usuario, ute.disco_titulo, ute.disco_anno_publicacion, ute.edicion_pais, ute.edicion_anno_edicion, ute.edicion_formato, ute.estado, ute.id
+FROM UTieneE ute JOIN Usuarios u ON ute.usuario_nombre_usuario = u.nombre_usuario
+WHERE u.nombre LIKE '%Gómez García%' AND (ute.estado = 'NM' OR ute.estado = 'M');
 
--- \echo 'Consulta 10: '
--- SELECT u.nombre_usuario, COUNT(ute.id),MIN(ute.disco_anno_publicacion)::INTEGER, MAX(ute.disco_anno_publicacion)::INTEGER, AVG(ute.disco_anno_publicacion)::INTEGER
--- FROM Usuarios u JOIN UTieneE ute ON u.nombre_usuario = ute.usuario_nombre_usuario
--- GROUP BY u.nombre_usuario;
+\echo 'Consulta 10: '
+SELECT u.nombre_usuario, COUNT(ute.id),MIN(ute.disco_anno_publicacion)::INTEGER, MAX(ute.disco_anno_publicacion)::INTEGER, AVG(ute.disco_anno_publicacion)::INTEGER
+FROM Usuarios u JOIN UTieneE ute ON u.nombre_usuario = ute.usuario_nombre_usuario
+GROUP BY u.nombre_usuario;
 
--- \echo 'Consulta 11: '
--- SELECT d.grupo_nombre, COUNT(*)
--- FROM Discos d JOIN Ediciones e ON d.titulo = e.disco_titulo AND d.anno_publicacion = e.disco_anno_publicacion
--- GROUP BY d.grupo_nombre
--- HAVING COUNT(*) > 5;
+\echo 'Consulta 11: '
+SELECT d.grupo_nombre, COUNT(*)
+FROM Discos d JOIN Ediciones e ON d.titulo = e.disco_titulo AND d.anno_publicacion = e.disco_anno_publicacion
+GROUP BY d.grupo_nombre
+HAVING COUNT(*) > 5;
 
--- \echo 'Consulta 12: '
--- WITH discos_por_usuario AS (
---     SELECT u.nombre_usuario, COUNT(ute.id) AS num_discos
---     FROM Usuarios u JOIN UTieneE ute ON u.nombre_usuario = ute.usuario_nombre_usuario
---     GROUP BY u.nombre_usuario
--- )
--- SELECT u.nombre_usuario, COUNT(ute.id)
--- FROM Usuarios u JOIN UTieneE ute ON u.nombre_usuario = ute.usuario_nombre_usuario
--- GROUP BY u.nombre_usuario
--- HAVING COUNT(ute.id) >= ALL(SELECT num_discos FROM discos_por_usuario);
+\echo 'Consulta 12: '
+WITH discos_por_usuario AS (
+    SELECT u.nombre_usuario, COUNT(ute.id) AS num_discos
+    FROM Usuarios u JOIN UTieneE ute ON u.nombre_usuario = ute.usuario_nombre_usuario
+    GROUP BY u.nombre_usuario
+)
+SELECT u.nombre_usuario, COUNT(ute.id)
+FROM Usuarios u JOIN UTieneE ute ON u.nombre_usuario = ute.usuario_nombre_usuario
+GROUP BY u.nombre_usuario
+HAVING COUNT(ute.id) >= ALL(SELECT num_discos FROM discos_por_usuario);
 
-\q
+
 ROLLBACK;                       -- importante! permite correr el script multiples veces...p
