@@ -251,6 +251,7 @@ FROM Discos d JOIN Canciones c ON d.titulo = c.disco_titulo AND d.anno_publicaci
 GROUP BY d.titulo, d.anno_publicacion
 HAVING COUNT(*) > 5
 ORDER BY num_canciones;
+-- Juntamos las tablas Discos y Canciones, y las agrupamos por titulo y anno_publicacion. Contamos el número de canciones por disco y nos quedamos con aquellos que tengan más de 5 canciones. Finalmente, ordenamos por el número de canciones (de menor a mayor).
 
 \echo 'Consulta 2: '
 SELECT u.nombre_usuario, u.nombre, e.disco_titulo, e.disco_anno_publicacion, e.edicion_pais, e.edicion_anno_edicion, e.edicion_formato, e.estado
@@ -269,7 +270,7 @@ SELECT d.titulo, d.anno_publicacion, SUM(c.duracion) AS duracion_total
 FROM Discos d JOIN Canciones c ON d.titulo = c.disco_titulo AND d.anno_publicacion = c.disco_anno_publicacion
 GROUP BY d.titulo, d.anno_publicacion
 HAVING SUM(c.duracion) >= ALL(SELECT duracion_total FROM DuracionesDisco);
-
+-- Creamos una tabla temporal DuracionesDisco que contiene el título, año de publicación y duración total de las canciones de cada disco. Para obtener la duración total de cada disco, agrupamos la tabla por título y año de publicación, y sumamos la duración de las canciones de cada grupo. Finalmente, creamos otra tabla que contiene el título, año de publicación y duración total de las canciones de cada disco (realizando los mismos pasos que antes), y nos quedamos con aquellos discos cuya duración total sea mayor o igual a todos los valores de la columna duracion_total de la tabla DuracionesDisco.
 \echo 'Consulta 4: '
 SELECT u.nombre_usuario, u.nombre, udd.disco_titulo, udd.disco_anno_publicacion, d.grupo_nombre
 FROM usuarios u JOIN udesead udd ON u.nombre_usuario = udd.usuario_nombre_usuario
@@ -281,10 +282,10 @@ SELECT disco_titulo, disco_anno_publicacion, anno_edicion, pais, formato
 FROM Ediciones
 WHERE disco_anno_publicacion BETWEEN 1970 AND 1972
 ORDER BY disco_anno_publicacion, disco_titulo;
-
+-- Seleccionamos todas las ediciones cuya clave foránea disco_anno_publicacion esté entre 1970 y 1972, y las ordenamos por año de publicación y título del disco.
 \echo 'Consulta 6: '
-SELECT DISTINCT g.nombre
-FROM Grupos g JOIN discos d ON g.nombre = d.grupo_nombre JOIN generosdisco gd ON d.titulo = gd.disco_titulo AND d.anno_publicacion = gd.disco_anno_publicacion
+SELECT DISTINCT d.grupo_nombre
+FROM discos d JOIN generosdisco gd ON d.titulo = gd.disco_titulo AND d.anno_publicacion = gd.disco_anno_publicacion
 WHERE gd.genero = 'Electronic';
 
 \echo 'Consulta 7: '
@@ -294,7 +295,7 @@ JOIN Canciones c ON d.titulo = c.disco_titulo AND d.anno_publicacion = c.disco_a
 JOIN Ediciones e ON d.titulo = e.disco_titulo AND d.anno_publicacion = e.disco_anno_publicacion
 WHERE e.anno_edicion < 2000
 GROUP BY d.titulo, d.anno_publicacion;
-
+-- Juntamos las tablas Discos, Canciones y Ediciones, y nos quedamos con aquellos discos cuya clave foránea anno_edicion de la tabla Ediciones sea menor a 2000. Agrupamos por título y año de publicación del disco para sumamos la duración de las canciones de cada disco usando SUM, obteniendo así la duración total del disco.
 \echo 'Consulta 8: '
 SELECT ut.nombre AS lo_tiene, ud.nombre AS lo_desea, ute.disco_titulo, ute.disco_anno_publicacion, ute.edicion_pais, ute.edicion_anno_edicion, ute.edicion_formato, ute.estado
 FROM UTieneE ute JOIN UDeseaD udd ON ute.disco_titulo = udd.disco_titulo AND ute.disco_anno_publicacion = udd.disco_anno_publicacion JOIN usuarios ud ON udd.usuario_nombre_usuario = ud.nombre_usuario JOIN usuarios ut ON ute.usuario_nombre_usuario = ut.nombre_usuario
@@ -304,7 +305,7 @@ WHERE ut.nombre LIKE 'Juan García Gómez' AND ud.nombre LIKE 'Lorena Sáez Pér
 SELECT u.nombre AS nombre_del_usuario, ute.disco_titulo, ute.disco_anno_publicacion, ute.edicion_pais, ute.edicion_anno_edicion, ute.edicion_formato, ute.estado, ute.id
 FROM UTieneE ute JOIN Usuarios u ON ute.usuario_nombre_usuario = u.nombre_usuario
 WHERE u.nombre LIKE '%Gómez García%' AND (ute.estado = 'NM' OR ute.estado = 'M');
-
+-- Juntamos las tablas UTieneE y Usuarios para juntar el nombre real del usuario con el nombre de usuario. Nos quedamos con aquellos usuarios cuyo nombre contenga 'Gómez García' y cuyo estado sea 'NM' o 'M'.
 \echo 'Consulta 10: '
 SELECT u.nombre_usuario, COUNT(ute.id),MIN(ute.disco_anno_publicacion)::INTEGER, MAX(ute.disco_anno_publicacion)::INTEGER, AVG(ute.disco_anno_publicacion)::INTEGER
 FROM Usuarios u JOIN UTieneE ute ON u.nombre_usuario = ute.usuario_nombre_usuario
@@ -315,17 +316,17 @@ SELECT d.grupo_nombre, COUNT(*)
 FROM Discos d JOIN Ediciones e ON d.titulo = e.disco_titulo AND d.anno_publicacion = e.disco_anno_publicacion
 GROUP BY d.grupo_nombre
 HAVING COUNT(*) > 5;
-
+-- Juntamos las tablas Discos y Ediciones, y las agrupamos por el nombre del grupo. Así, contamos el número de discos por cada grupo con COUNT y nos quedamos con aquellos grupos que tengan más de 5 discos. Finalmente, ordenamos por el número de discos (ascendentemente).
 \echo 'Consulta 12: '
 WITH discos_por_usuario AS (
-    SELECT u.nombre_usuario, COUNT(ute.id) AS num_discos
-    FROM Usuarios u JOIN UTieneE ute ON u.nombre_usuario = ute.usuario_nombre_usuario
-    GROUP BY u.nombre_usuario
+    SELECT usuario_nombre_usuario, COUNT(id) AS num_discos
+    FROM UTieneE
+    GROUP BY usuario_nombre_usuario
 )
-SELECT u.nombre_usuario, COUNT(ute.id)
-FROM Usuarios u JOIN UTieneE ute ON u.nombre_usuario = ute.usuario_nombre_usuario
-GROUP BY u.nombre_usuario
-HAVING COUNT(ute.id) >= ALL(SELECT num_discos FROM discos_por_usuario);
-
+SELECT usuario_nombre_usuario, COUNT(id)
+FROM UTieneE
+GROUP BY usuario_nombre_usuario
+HAVING COUNT(id) >= ALL(SELECT num_discos FROM discos_por_usuario);
+--Creamos una tabla temporal discos_por_usuario que contiene el nombre de usuario y el número de discos que tiene cada usuario, que calculamos agrupando la tabla por el atributo usuario_nombre_usuario y contando el número de discos con COUNT. Finalmente, creamos otra tabla con los mismos atributos y nos quedamos con aquellos usuarios cuyo número de discos sea mayor o igual a todos los valores de la columna num_discos de la tabla discos_por_usuario.
 
 ROLLBACK;                       -- importante! permite correr el script multiples veces...p
