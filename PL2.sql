@@ -257,6 +257,8 @@ SELECT u.nombre_usuario, u.nombre, e.disco_titulo, e.disco_anno_publicacion, e.e
 FROM UTieneE e
 JOIN Usuarios u ON e.usuario_nombre_usuario = u.nombre_usuario
 WHERE u.nombre LIKE 'Juan García Gómez' AND e.edicion_formato = 'Vinyl';
+-- Seleccionamos los datos del usuario y de la edición y con el WHERE elegimos solo aquellas tuplas que tengan "Vinyl" como su formato
+
 
 \echo 'Consulta 3: '
 WITH DuracionesDisco AS (
@@ -275,6 +277,7 @@ SELECT u.nombre_usuario, u.nombre, udd.disco_titulo, udd.disco_anno_publicacion,
 FROM usuarios u JOIN udesead udd ON u.nombre_usuario = udd.usuario_nombre_usuario
 JOIN discos d ON udd.disco_titulo = d.titulo AND udd.disco_anno_publicacion = d.anno_publicacion
 WHERE u.nombre LIKE 'Juan García Gómez';
+-- Hacemos un join de usuarios, udesead y discos; elegimos las tuplas donde el nombre del usuario sea "Juan García Gómez" y seleccionamos los atributos relevantes
 
 \echo 'Consulta 5: '
 SELECT disco_titulo, disco_anno_publicacion, anno_edicion, pais, formato
@@ -286,6 +289,7 @@ ORDER BY disco_anno_publicacion, disco_titulo;
 SELECT DISTINCT g.nombre
 FROM Grupos g JOIN discos d ON g.nombre = d.grupo_nombre JOIN generosdisco gd ON d.titulo = gd.disco_titulo AND d.anno_publicacion = gd.disco_anno_publicacion
 WHERE gd.genero = 'Electronic';
+-- Hacemos  un join de discos y generosdisco; filtramos las tuplas para quedarnos con las que tienen "Electronic" en el atributo genero y seleccionamos el nombre del grupo que figura en discos como clave foránea
 
 \echo 'Consulta 7: '
 SELECT DISTINCT d.titulo, d.anno_publicacion, SUM(c.duracion) AS duracion_total
@@ -299,6 +303,7 @@ GROUP BY d.titulo, d.anno_publicacion;
 SELECT ut.nombre AS lo_tiene, ud.nombre AS lo_desea, ute.disco_titulo, ute.disco_anno_publicacion, ute.edicion_pais, ute.edicion_anno_edicion, ute.edicion_formato, ute.estado
 FROM UTieneE ute JOIN UDeseaD udd ON ute.disco_titulo = udd.disco_titulo AND ute.disco_anno_publicacion = udd.disco_anno_publicacion JOIN usuarios ud ON udd.usuario_nombre_usuario = ud.nombre_usuario JOIN usuarios ut ON ute.usuario_nombre_usuario = ut.nombre_usuario
 WHERE ut.nombre LIKE 'Juan García Gómez' AND ud.nombre LIKE 'Lorena Sáez Pérez';
+-- Hacemos un join que mezcla udesead, y usuarios por duplicad;o elegimos las tuplas donde el usuario procedente de udesead es "Juan García Gómez y el usuario procedente de utienee es "Lorena Sáez Pérez" y seleccionamos ambos nombres y la informacion del disco
 
 \echo 'Consulta 9: '
 SELECT u.nombre AS nombre_del_usuario, ute.disco_titulo, ute.disco_anno_publicacion, ute.edicion_pais, ute.edicion_anno_edicion, ute.edicion_formato, ute.estado, ute.id
@@ -309,6 +314,7 @@ WHERE u.nombre LIKE '%Gómez García%' AND (ute.estado = 'NM' OR ute.estado = 'M
 SELECT u.nombre_usuario, COUNT(ute.id),MIN(ute.disco_anno_publicacion)::INTEGER, MAX(ute.disco_anno_publicacion)::INTEGER, AVG(ute.disco_anno_publicacion)::INTEGER
 FROM Usuarios u JOIN UTieneE ute ON u.nombre_usuario = ute.usuario_nombre_usuario
 GROUP BY u.nombre_usuario;
+-- Hacemos una agrupación del join entre usuarios y utienee separando según el nombre de usuario para usar las funciones agregadas COUNT, MIN, MAX y AVG de los años de publicación de los discos de cada usuario
 
 \echo 'Consulta 11: '
 SELECT d.grupo_nombre, COUNT(*)
