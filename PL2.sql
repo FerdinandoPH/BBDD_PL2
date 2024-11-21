@@ -92,7 +92,7 @@ INSERT INTO tienda_temporal.UDeseaD
 SELECT DISTINCT * FROM temp_udesead;
 
 INSERT INTO tienda_temporal.UTieneE
-SELECT DISTINCT * FROM temp_utienee;
+SELECT * FROM temp_utienee;
 
 INSERT INTO tienda_temporal.Canciones
 SELECT DISTINCT * FROM temp_canciones;
